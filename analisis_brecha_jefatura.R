@@ -36,7 +36,7 @@
 ###############################################################################
 
 # Carpeta de trabajo: ahí deben estar los dos .dta. Es la ÚNICA línea a cambiar.
-setwd("C:\Users\lizbe\OneDrive\Desktop\Trabajos R")
+# setwd("C:\Users\lizbe\OneDrive\Desktop\Trabajos R")
 
 
 # ==============================================================================
@@ -56,15 +56,19 @@ library(ggplot2) # gráficas
 library(haven)   # leer las bases .dta
 library(dineq)   # ntiles.wtd: deciles con factor de expansión
 library(flextable) # tablas con formato
+library(scales)
 
 # Carpetas donde se guardan los resultados (se crean si no existen)
 dir.create("resultados/cuadros", recursive = TRUE, showWarnings = FALSE)
 dir.create("resultados/figuras", recursive = TRUE, showWarnings = FALSE)
 
 # Colores de las gráficas
-col_jef  <- c("Hombre" = "#2e8b57", "Mujer" = "#7b2d8e") # por jefatura
-col_anio <- c("2022" = "#1f77b4", "2024" = "#ff7f0e")    # por año
 pie_fuente <- "Fuente: Elaboración propia con datos de la ENIGH (2022 y 2024)"
+col_jef  <- c("Hombre" = "#2A9D8F", "Mujer" = "#9B2D7F")
+col_anio <- c("2022" = "#4C78A8", "2024" = "#F28E2B")
+col_fuente <- c("Trabajo" = "#2A9D8F", "Rentas" = "#E9C46A",
+                "Transferencias" = "#7B6CB5", "Estimación del alquiler" = "#E76F51",
+                "Otros ingresos" = "#8D99AE")
 
 # Las cinco fuentes del ingreso corriente: nombre de la variable y nombre
 # para mostrar en cuadros y gráficas (mismo orden)
@@ -72,9 +76,6 @@ fuentes_ingreso <- c("TRABAJO", "RENTAS", "TRANSFERENCIAS",
                      "ALQUILER_ESTIMADO", "OTROS_INGRESOS")
 nombres_fuente  <- c("Trabajo", "Rentas", "Transferencias",
                      "Estimación del alquiler", "Otros ingresos")
-col_fuente <- c("Trabajo" = "#1b9e77", "Rentas" = "#d95f02",
-                "Transferencias" = "#7570b3", "Estimación del alquiler" = "#e7298a",
-                "Otros ingresos" = "#66a61e")
 
 # Escenarios del paso 8: ingreso completo y quitando una fuente a la vez
 escenarios     <- c("Ingreso completo", paste("Sin", tolower(nombres_fuente)))
@@ -155,64 +156,64 @@ deflactor24 <- 1
 # preparar(): crea, en una base de la ENIGH, las variables del análisis.
 # Se usa igual para 2022 y para 2024 (solo cambia el deflactor).
 preparar <- function(base, deflactor) {
-
+  
   base <- mutate(base,
-
-    # ---- Ingreso trimestral del hogar, en pesos de 2024, por fuente ----
-    INGRESO_TOTAL     = ing_cor / deflactor,    # ingreso corriente total
-    TRABAJO           = ingtrab / deflactor,    # ingreso por trabajo
-    RENTAS            = rentas / deflactor,     # renta de la propiedad
-    TRANSFERENCIAS    = transfer / deflactor,   # transferencias
-    ALQUILER_ESTIMADO = estim_alqu / deflactor, # estimación del alquiler
-    OTROS_INGRESOS    = otros_ing / deflactor,  # otros ingresos
-
-    # ---- Integrantes e ingreso per cápita (ingreso del hogar / integrantes) ----
-    INTEGRANTES       = tot_integ,
-    INGRESO_PC        = INGRESO_TOTAL / INTEGRANTES,
-    TRABAJO_PC           = TRABAJO / INTEGRANTES,
-    RENTAS_PC            = RENTAS / INTEGRANTES,
-    TRANSFERENCIAS_PC    = TRANSFERENCIAS / INTEGRANTES,
-    ALQUILER_ESTIMADO_PC = ALQUILER_ESTIMADO / INTEGRANTES,
-    OTROS_INGRESOS_PC    = OTROS_INGRESOS / INTEGRANTES,
-
-    # ---- Ingreso per cápita SIN una fuente (paso 8) ----
-    SIN_TRABAJO_PC           = (INGRESO_TOTAL - TRABAJO) / INTEGRANTES,
-    SIN_RENTAS_PC            = (INGRESO_TOTAL - RENTAS) / INTEGRANTES,
-    SIN_TRANSFERENCIAS_PC    = (INGRESO_TOTAL - TRANSFERENCIAS) / INTEGRANTES,
-    SIN_ALQUILER_ESTIMADO_PC = (INGRESO_TOTAL - ALQUILER_ESTIMADO) / INTEGRANTES,
-    SIN_OTROS_INGRESOS_PC    = (INGRESO_TOTAL - OTROS_INGRESOS) / INTEGRANTES,
-
-    # ---- El grupo: sexo de la jefatura del hogar ----
-    # En sexo_jefe: 1 = hombre, 2 = mujer (descriptor de INEGI)
-    JEFATURA = factor(as.numeric(sexo_jefe), levels = c(1, 2),
-                      labels = c("Hombre", "Mujer")),
-    MUJER    = ifelse(JEFATURA == "Mujer", 1, 0), # 1 si la jefatura es femenina
-    UNO      = 1,                                 # para contar hogares
-
-    # ---- Ámbito:tam_loc 1, 2 y 3 = urbano; 4 = rural ----
-    #   (1 = 100 mil y más hab., 2 = 15 mil a 99,999, 3 = 2,500 a 14,999,
-    #    4 = menos de 2,500 hab.)
-    AMBITO = case_when(tam_loc == "1" ~ "Urbano",
-                       tam_loc == "2" ~ "Urbano",
-                       tam_loc == "3" ~ "Urbano",
-                       tam_loc == "4" ~ "Rural"))
-
+                 
+                 # ---- Ingreso trimestral del hogar, en pesos de 2024, por fuente ----
+                 INGRESO_TOTAL     = ing_cor / deflactor,    # ingreso corriente total
+                 TRABAJO           = ingtrab / deflactor,    # ingreso por trabajo
+                 RENTAS            = rentas / deflactor,     # renta de la propiedad
+                 TRANSFERENCIAS    = transfer / deflactor,   # transferencias
+                 ALQUILER_ESTIMADO = estim_alqu / deflactor, # estimación del alquiler
+                 OTROS_INGRESOS    = otros_ing / deflactor,  # otros ingresos
+                 
+                 # ---- Integrantes e ingreso per cápita (ingreso del hogar / integrantes) ----
+                 INTEGRANTES       = tot_integ,
+                 INGRESO_PC        = INGRESO_TOTAL / INTEGRANTES,
+                 TRABAJO_PC           = TRABAJO / INTEGRANTES,
+                 RENTAS_PC            = RENTAS / INTEGRANTES,
+                 TRANSFERENCIAS_PC    = TRANSFERENCIAS / INTEGRANTES,
+                 ALQUILER_ESTIMADO_PC = ALQUILER_ESTIMADO / INTEGRANTES,
+                 OTROS_INGRESOS_PC    = OTROS_INGRESOS / INTEGRANTES,
+                 
+                 # ---- Ingreso per cápita SIN una fuente (paso 8) ----
+                 SIN_TRABAJO_PC           = (INGRESO_TOTAL - TRABAJO) / INTEGRANTES,
+                 SIN_RENTAS_PC            = (INGRESO_TOTAL - RENTAS) / INTEGRANTES,
+                 SIN_TRANSFERENCIAS_PC    = (INGRESO_TOTAL - TRANSFERENCIAS) / INTEGRANTES,
+                 SIN_ALQUILER_ESTIMADO_PC = (INGRESO_TOTAL - ALQUILER_ESTIMADO) / INTEGRANTES,
+                 SIN_OTROS_INGRESOS_PC    = (INGRESO_TOTAL - OTROS_INGRESOS) / INTEGRANTES,
+                 
+                 # ---- El grupo: sexo de la jefatura del hogar ----
+                 # En sexo_jefe: 1 = hombre, 2 = mujer (descriptor de INEGI)
+                 JEFATURA = factor(as.numeric(sexo_jefe), levels = c(1, 2),
+                                   labels = c("Hombre", "Mujer")),
+                 MUJER    = ifelse(JEFATURA == "Mujer", 1, 0), # 1 si la jefatura es femenina
+                 UNO      = 1,                                 # para contar hogares
+                 
+                 # ---- Ámbito:tam_loc 1, 2 y 3 = urbano; 4 = rural ----
+                 #   (1 = 100 mil y más hab., 2 = 15 mil a 99,999, 3 = 2,500 a 14,999,
+                 #    4 = menos de 2,500 hab.)
+                 AMBITO = case_when(tam_loc == "1" ~ "Urbano",
+                                    tam_loc == "2" ~ "Urbano",
+                                    tam_loc == "3" ~ "Urbano",
+                                    tam_loc == "4" ~ "Rural"))
+  
   # ---- Deciles nacionales de hogares por ingreso per cápita ----
   # Se calculan con todos los hogares del país (no por grupo)
   base$DECIL <- ntiles.wtd(x = base$INGRESO_PC, n = 10, weights = base$factor)
-
+  
   base
 }
 
-base22 <- preparar(read_dta("C:/Users/lizbe/OneDrive/Desktop/Trabajos R/concentradohogar22.dta"), deflactor22)
-base24 <- preparar(read_dta("C:/Users/lizbe/OneDrive/Desktop/Trabajos R/concentradohogar24.dta"), deflactor24)
+base22 <- preparar(read_dta("concentradohogar22.dta"), deflactor22)
+base24 <- preparar(read_dta("concentradohogar24.dta"), deflactor24)
 
 # Comprobación: las cinco fuentes deben sumar el ingreso corriente
 # (debe salir prácticamente 0)
 print(max(abs(base22$INGRESO_TOTAL - (base22$TRABAJO + base22$RENTAS + base22$TRANSFERENCIAS +
-                                      base22$ALQUILER_ESTIMADO + base22$OTROS_INGRESOS))))
+                                        base22$ALQUILER_ESTIMADO + base22$OTROS_INGRESOS))))
 print(max(abs(base24$INGRESO_TOTAL - (base24$TRABAJO + base24$RENTAS + base24$TRANSFERENCIAS +
-                                      base24$ALQUILER_ESTIMADO + base24$OTROS_INGRESOS))))
+                                        base24$ALQUILER_ESTIMADO + base24$OTROS_INGRESOS))))
 
 # Revisar que no queden NA en el grupo ni en el ámbito
 print(table(base22$JEFATURA, useNA = "ifany"))
@@ -377,10 +378,10 @@ todo_composicion <- NULL;  todo_brecha_fuente <- NULL;  todo_comp_decil <- NULL
 todo_con_sin <- NULL;  todo_theil_con_sin <- NULL
 
 for (amb in ambitos) {
-
+  
   cat("\n==================== Ámbito:", amb, "====================\n")
-
-# ---- Diseños y bases del ámbito ----
+  
+  # ---- Diseños y bases del ámbito ----
   if (amb == "Nacional") {
     d22 <- diseno22
     d24 <- diseno24
@@ -392,28 +393,28 @@ for (amb in ambitos) {
     b22 <- base22[base22$AMBITO == amb, ]
     b24 <- base24[base24$AMBITO == amb, ]
   }
-
-
+  
+  
   #############################################################################
   # 1. TAMAÑO DEL GRUPO Y PRECISIÓN DE LAS ESTIMACIONES
   #############################################################################
-
+  
   # ---- 1.1 Tamaño del grupo ----
   # Hogares y personas expandidos por jefatura
   hogares22  <- svyby(~UNO, ~JEFATURA, d22, svytotal, vartype = c("se", "cv"))
   hogares24  <- svyby(~UNO, ~JEFATURA, d24, svytotal, vartype = c("se", "cv"))
   personas22 <- svyby(~INTEGRANTES, ~JEFATURA, d22, svytotal, vartype = c("se", "cv"))
   personas24 <- svyby(~INTEGRANTES, ~JEFATURA, d24, svytotal, vartype = c("se", "cv"))
-
+  
   # Porcentaje de hogares con jefatura femenina
   pct_mujer22 <- svymean(~MUJER, d22)
   pct_mujer24 <- svymean(~MUJER, d24)
-
+  
   # Número promedio de integrantes por hogar (ayuda a entender el ingreso per cápita:
   # con el mismo ingreso, un hogar con menos integrantes tiene más ingreso por persona)
   integ22 <- svyby(~INTEGRANTES, ~JEFATURA, d22, svymean, vartype = c("se", "cv"))
   integ24 <- svyby(~INTEGRANTES, ~JEFATURA, d24, svymean, vartype = c("se", "cv"))
-
+  
   cuadro_tamano <- data.frame(
     ANIO                 = c(2022, 2022, 2024, 2024),
     JEFATURA             = c("Hombre", "Mujer", "Hombre", "Mujer"),
@@ -427,7 +428,7 @@ for (amb in ambitos) {
     CV_INTEGRANTES       = 100 * c(cv(integ22), cv(integ24)))
   cuadro_tamano$PRECISION_INTEGRANTES <- precision(cuadro_tamano$CV_INTEGRANTES)
   todo_tamano <- rbind(todo_tamano, data.frame(AMBITO = amb, cuadro_tamano))
-
+  
   # ---- 1.2 Precisión: media, mediana y Gini del ingreso per cápita ----
   media22   <- svyby(~INGRESO_PC, ~JEFATURA, d22, svymean, vartype = c("se", "cv"))
   media24   <- svyby(~INGRESO_PC, ~JEFATURA, d24, svymean, vartype = c("se", "cv"))
@@ -437,7 +438,7 @@ for (amb in ambitos) {
                      ci = TRUE, vartype = c("se", "cv"))
   gini22    <- svyby(~INGRESO_PC, ~JEFATURA, d22, svygini, vartype = c("se", "cv"))
   gini24    <- svyby(~INGRESO_PC, ~JEFATURA, d24, svygini, vartype = c("se", "cv"))
-
+  
   cuadro_precision <- data.frame(
     ANIO = rep(c(2022, 2024), each = 7),
     INDICADOR = rep(c("% hogares con jefatura femenina",
@@ -451,22 +452,22 @@ for (amb in ambitos) {
                  cv(pct_mujer24), cv(media24), cv(mediana24), cv(gini24)))
   cuadro_precision$PRECISION <- precision(cuadro_precision$CV) # Alta / Moderada / Baja
   todo_precision <- rbind(todo_precision, data.frame(AMBITO = amb, cuadro_precision))
-
-
+  
+  
   #############################################################################
   # 2. DÓNDE SE UBICA EL GRUPO EN LA DISTRIBUCIÓN DEL INGRESO
   #############################################################################
-#---- 2.1 % de hogares con jefatura femenina dentro de cada decil nacional ----
-pct_decil22 <- svyby(~MUJER, ~DECIL, d22, svymean, vartype = c("se", "cv"))
-pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
-
+  #---- 2.1 % de hogares con jefatura femenina dentro de cada decil nacional ----
+  pct_decil22 <- svyby(~MUJER, ~DECIL, d22, svymean, vartype = c("se", "cv"))
+  pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
+  
   # ---- 2.2 Cómo se reparten los hogares de cada grupo entre los deciles ----
   # (cada columna suma 100 %)
   reparto_mujer22  <- svymean(~factor(DECIL), subset(d22, JEFATURA == "Mujer"))
   reparto_hombre22 <- svymean(~factor(DECIL), subset(d22, JEFATURA == "Hombre"))
   reparto_mujer24  <- svymean(~factor(DECIL), subset(d24, JEFATURA == "Mujer"))
   reparto_hombre24 <- svymean(~factor(DECIL), subset(d24, JEFATURA == "Hombre"))
-
+  
   cuadro_ubicacion <- data.frame(
     DECIL                     = 1:10,
     PCT_HOGARES_JEFA_2022     = 100 * coef(pct_decil22),
@@ -480,22 +481,22 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
     DISTRIBUCION_JEFAS_2024   = 100 * coef(reparto_mujer24),
     DISTRIBUCION_JEFES_2024   = 100 * coef(reparto_hombre24))
   todo_ubicacion <- rbind(todo_ubicacion, data.frame(AMBITO = amb, cuadro_ubicacion))
-
-
+  
+  
   #############################################################################
   # 3. LA BRECHA EN CADA AÑO (media y mediana)
   #############################################################################
-
+  
   # Media por jefatura guardando la covarianza, para poder calcular la razón
   # Mujer/Hombre con su error estándar (svycontrast)
   media_cov22 <- svyby(~INGRESO_PC, ~JEFATURA, d22, svymean, covmat = TRUE)
   media_cov24 <- svyby(~INGRESO_PC, ~JEFATURA, d24, svymean, covmat = TRUE)
-
+  
   razon22 <- svycontrast(media_cov22, quote(Mujer / Hombre)) # razón M/H
   razon24 <- svycontrast(media_cov24, quote(Mujer / Hombre))
   dif22   <- svycontrast(media_cov22, quote(Mujer - Hombre)) # diferencia M-H en pesos
   dif24   <- svycontrast(media_cov24, quote(Mujer - Hombre))
-
+  
   cuadro_brecha <- data.frame(
     ANIO                     = c(2022, 2024),
     INGRESO_MEDIO_HOMBRE     = c(est(media22, "Hombre"), est(media24, "Hombre")),
@@ -509,20 +510,20 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
   cuadro_brecha$RAZON_MEDIANAS_MUJER_HOMBRE <-
     cuadro_brecha$INGRESO_MEDIANO_MUJER / cuadro_brecha$INGRESO_MEDIANO_HOMBRE
   todo_brecha <- rbind(todo_brecha, data.frame(AMBITO = amb, cuadro_brecha))
-
-
+  
+  
   #############################################################################
   # 4. DESCOMPOSICIÓN DE LA DESIGUALDAD DENTRO Y ENTRE GRUPOS
   #############################################################################
-
+  
   # ---- 4.1 Varianza del ingreso per cápita: dentro y entre grupos ----
   var22 <- descomp_var(y = b22$INGRESO_PC, w = b22$factor, g = b22$JEFATURA)
   var24 <- descomp_var(y = b24$INGRESO_PC, w = b24$factor, g = b24$JEFATURA)
-
+  
   # ---- 4.2 Theil y GE(0): dentro y entre grupos ----
   theil22 <- ineqdeco(y = b22$INGRESO_PC, w = b22$factor, g = b22$JEFATURA)
   theil24 <- ineqdeco(y = b24$INGRESO_PC, w = b24$factor, g = b24$JEFATURA)
-
+  
   cuadro_descomposicion <- data.frame(
     ANIO   = rep(c(2022, 2024), each = 3),
     INDICE = rep(c("Varianza", "Theil GE(1)", "GE(0)"), 2),
@@ -535,7 +536,7 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
   cuadro_descomposicion$PCT_DENTRO <- 100 * cuadro_descomposicion$DESIGUALDAD_DENTRO / cuadro_descomposicion$TOTAL
   cuadro_descomposicion$PCT_ENTRE  <- 100 * cuadro_descomposicion$DESIGUALDAD_ENTRE / cuadro_descomposicion$TOTAL
   todo_descomposicion <- rbind(todo_descomposicion, data.frame(AMBITO = amb, cuadro_descomposicion))
-
+  
   # Detalle por grupo (peso en la población y en el ingreso, media relativa)
   cuadro_grupos <- data.frame(
     ANIO             = rep(c(2022, 2024), each = 2),
@@ -544,16 +545,16 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
     PCT_INGRESO      = 100 * c(theil22$sub$inc_share, theil24$sub$inc_share),
     INGRESO_RELATIVO = c(theil22$sub$rel_mean, theil24$sub$rel_mean))
   todo_grupos <- rbind(todo_grupos, data.frame(AMBITO = amb, cuadro_grupos))
-
-
+  
+  
   #############################################################################
   # 5. GINI, THEIL Y CURVAS DE LORENZ
   #############################################################################
-
+  
   # ---- 5.1 Gini del total del ámbito (por grupo ya está en el paso 1) ----
   gini_tot22 <- svygini(~INGRESO_PC, d22)
   gini_tot24 <- svygini(~INGRESO_PC, d24)
-
+  
   # ---- 5.2 Theil (solo hogares con ingreso mayor que cero, como en clase) ----
   theil_grupo22 <- svyby(~INGRESO_PC, ~JEFATURA, subset(d22, INGRESO_PC > 0), svygei,
                          epsilon = 1, vartype = c("se", "cv"))
@@ -561,7 +562,7 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
                          epsilon = 1, vartype = c("se", "cv"))
   theil_tot22   <- svygei(~INGRESO_PC, subset(d22, INGRESO_PC > 0), epsilon = 1)
   theil_tot24   <- svygei(~INGRESO_PC, subset(d24, INGRESO_PC > 0), epsilon = 1)
-
+  
   cuadro_desigualdad <- data.frame(
     ANIO     = rep(c(2022, 2024), each = 3),
     GRUPO    = rep(c("Hombre", "Mujer", "Total"), 2),
@@ -572,7 +573,7 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
   cuadro_desigualdad$PRECISION_GINI  <- precision(cuadro_desigualdad$CV_GINI)
   cuadro_desigualdad$PRECISION_THEIL <- precision(cuadro_desigualdad$CV_THEIL)
   todo_desigualdad <- rbind(todo_desigualdad, data.frame(AMBITO = amb, cuadro_desigualdad))
-
+  
   # ---- 5.3 Curvas de Lorenz por jefatura y año ----
   lorenz_h22 <- svylorenz(~INGRESO_PC, subset(d22, JEFATURA == "Hombre"),
                           quantiles = cortes, plot = FALSE, na.rm = TRUE)
@@ -582,20 +583,20 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
                           quantiles = cortes, plot = FALSE, na.rm = TRUE)
   lorenz_m24 <- svylorenz(~INGRESO_PC, subset(d24, JEFATURA == "Mujer"),
                           quantiles = cortes, plot = FALSE, na.rm = TRUE)
-
+  
   cuadro_lorenz <- data.frame(
     ANIO                = rep(c("2022", "2022", "2024", "2024"), each = 11),
     JEFATURA            = rep(c("Hombre", "Mujer", "Hombre", "Mujer"), each = 11),
     POBLACION_ACUMULADA = rep(cortes, 4),
     INGRESO_ACUMULADO   = c(coef(lorenz_h22), coef(lorenz_m22), coef(lorenz_h24), coef(lorenz_m24)))
   todo_lorenz <- rbind(todo_lorenz, data.frame(AMBITO = amb, cuadro_lorenz))
-
-
+  
+  
   #############################################################################
   # 6. EL CAMBIO 2022-2024 Y SU SIGNIFICANCIA ESTADÍSTICA
   #############################################################################
   # Si VALOR_P < 0.05 (|z| > 1.96), el cambio es estadísticamente significativo.
-
+  
   cuadro_cambios <- rbind(
     prueba_z("% hogares con jefatura femenina",
              100 * est(pct_mujer22, 1), 100 * ee(pct_mujer22, 1),
@@ -639,51 +640,51 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
     prueba_z("Theil - Total",
              est(theil_tot22, 1), ee(theil_tot22, 1), est(theil_tot24, 1), ee(theil_tot24, 1)))
   todo_cambios <- rbind(todo_cambios, data.frame(AMBITO = amb, cuadro_cambios))
-
-
+  
+  
   #############################################################################
   # 7. CÓMO SE CONFORMA EL INGRESO POR FUENTE
   #############################################################################
   comp22 <- composicion(d22)
   comp24 <- composicion(d24)
   todo_composicion <- rbind(todo_composicion,
-    data.frame(AMBITO = amb, ANIO = 2022, comp22),
-    data.frame(AMBITO = amb, ANIO = 2024, comp24))
-
+                            data.frame(AMBITO = amb, ANIO = 2022, comp22),
+                            data.frame(AMBITO = amb, ANIO = 2024, comp24))
+  
   # ---- 7.2 Ingreso medio per cápita de cada fuente y brecha Mujer/Hombre ----
   # Las cinco medias suman el ingreso medio per cápita del paso 3.
   for (k in 1:5) {
     variable <- paste0(fuentes_ingreso[k], "_PC")
     todo_brecha_fuente <- rbind(todo_brecha_fuente,
-      data.frame(AMBITO = amb, ANIO = 2022, FUENTE = nombres_fuente[k], brecha_MH(d22, variable)),
-      data.frame(AMBITO = amb, ANIO = 2024, FUENTE = nombres_fuente[k], brecha_MH(d24, variable)))
+                                data.frame(AMBITO = amb, ANIO = 2022, FUENTE = nombres_fuente[k], brecha_MH(d22, variable)),
+                                data.frame(AMBITO = amb, ANIO = 2024, FUENTE = nombres_fuente[k], brecha_MH(d24, variable)))
   }
-
+  
   # ---- 7.3 Composición del ingreso por decil nacional y jefatura ----
   todo_comp_decil <- rbind(todo_comp_decil,
-    data.frame(AMBITO = amb, ANIO = 2022, composicion_decil(b22)),
-    data.frame(AMBITO = amb, ANIO = 2024, composicion_decil(b24)))
-
-
+                           data.frame(AMBITO = amb, ANIO = 2022, composicion_decil(b22)),
+                           data.frame(AMBITO = amb, ANIO = 2024, composicion_decil(b24)))
+  
+  
   #############################################################################
   # 8. QUÉ PASA CON Y SIN CADA FUENTE DEL INGRESO
   #############################################################################
   # Ejercicio "contable": se quita una fuente del ingreso de los hogares y se
   # vuelven a calcular la brecha y la desigualdad, suponiendo que todo lo demás
   # quedaría igual. Escenarios: ingreso completo y sin cada una de las cinco fuentes.
-
+  
   for (e in 1:6) {
     variable <- variables_esc[e]
-
+    
     # ---- 8.1 Brecha (razón Mujer/Hombre) y Gini ----
     con_sin22 <- cbind(brecha_MH(d22, variable)[, c("MEDIA_HOMBRE", "MEDIA_MUJER",
-                         "RAZON_MUJER_HOMBRE", "CV_RAZON")], gini_escenario(d22, variable))
+                                                    "RAZON_MUJER_HOMBRE", "CV_RAZON")], gini_escenario(d22, variable))
     con_sin24 <- cbind(brecha_MH(d24, variable)[, c("MEDIA_HOMBRE", "MEDIA_MUJER",
-                         "RAZON_MUJER_HOMBRE", "CV_RAZON")], gini_escenario(d24, variable))
+                                                    "RAZON_MUJER_HOMBRE", "CV_RAZON")], gini_escenario(d24, variable))
     todo_con_sin <- rbind(todo_con_sin,
-      data.frame(AMBITO = amb, ANIO = 2022, ESCENARIO = escenarios[e], con_sin22),
-      data.frame(AMBITO = amb, ANIO = 2024, ESCENARIO = escenarios[e], con_sin24))
-
+                          data.frame(AMBITO = amb, ANIO = 2022, ESCENARIO = escenarios[e], con_sin22),
+                          data.frame(AMBITO = amb, ANIO = 2024, ESCENARIO = escenarios[e], con_sin24))
+    
     # ---- 8.2 Theil y GE(0) dentro y entre grupos ----
     # Ojo: ineqdeco() deja fuera a los hogares con ingreso 0; al quitar una
     # fuente hay más hogares en cero (columna HOGARES_EXCLUIDOS, en la muestra).
@@ -699,7 +700,7 @@ pct_decil24 <- svyby(~MUJER, ~DECIL, d24, svymean, vartype = c("se", "cv"))
       DESIGUALDAD_ENTRE  = c(t22$between[["ge1"]], t22$between[["ge0"]], t24$between[["ge1"]], t24$between[["ge0"]]),
       HOGARES_EXCLUIDOS  = rep(c(t22$excluidas, t24$excluidas), each = 2)))
   }
-
+  
 } # fin del ciclo de ámbitos
 
 
@@ -777,205 +778,331 @@ write.csv(todo_theil_con_sin,  "resultados/cuadros/8_2_theil_con_sin_fuente.csv"
 # Cada gráfica tiene paneles por ámbito: Nacional, Urbano y Rural.
 ###############################################################################
 
+# ---- Tema común --------------------------------------------------------------
+tema_pro <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title.position   = "plot",
+      plot.caption.position = "plot",
+      plot.title    = element_text(face = "bold", size = base_size + 4,
+                                   color = "#1f2430", margin = margin(b = 4)),
+      plot.subtitle = element_text(color = "grey35", size = base_size,
+                                   margin = margin(b = 12)),
+      plot.caption  = element_text(color = "grey50", size = base_size - 3,
+                                   hjust = 0, margin = margin(t = 12)),
+      plot.margin   = margin(14, 18, 10, 14),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor   = element_blank(),
+      panel.grid.major.y = element_line(color = "grey90", linewidth = 0.4),
+      panel.spacing      = unit(1.1, "lines"),
+      axis.title  = element_text(color = "grey30", size = base_size - 1),
+      axis.text   = element_text(color = "grey30"),
+      axis.ticks  = element_blank(),
+      strip.text  = element_text(face = "bold", color = "white", size = base_size - 1,
+                                 margin = margin(5, 5, 5, 5)),
+      strip.background = element_rect(fill = "#2B2D42", color = NA),
+      legend.position = "top",
+      legend.justification = "left",
+      legend.title = element_text(face = "bold", size = base_size - 1),
+      legend.key.size = unit(0.9, "lines")
+    )
+}
+
+# Variante para gráficas horizontales (las líneas guía van en el eje x)
+tema_h <- function(base_size = 12) {
+  tema_pro(base_size) +
+    theme(panel.grid.major.x = element_line(color = "grey90", linewidth = 0.4),
+          panel.grid.major.y = element_blank())
+}
+
+# Guarda con fondo blanco y muestra la gráfica en Plots
+guardar <- function(grafica, archivo, ancho, alto) {
+  print(grafica)
+  ggsave(file.path("resultados/figuras", archivo), grafica,
+         width = ancho, height = alto, dpi = 300, bg = "white")
+}
+
 # Para que los paneles salgan en este orden: Nacional, Urbano, Rural
 orden_amb <- function(x) factor(x, levels = ambitos)
 
-# ---- F1. Ingreso medio per cápita por jefatura y año, con IC 95 % ----
+# Eje de las razones Mujer/Hombre: dice hacia dónde va cada lado
+eje_razon <- paste0("\u2190 más ingreso en hogares con jefe          ",
+                    "más ingreso en hogares con jefa \u2192\n",
+                    "Razón Mujer/Hombre (escala logarítmica; 1 = sin brecha)")
+
+# Puntos con intervalo de confianza para razones Mujer/Hombre.
+# - Escala logarítmica: 0.5 y 2 quedan a la misma distancia de 1.
+# - IC al 95 % calculado en escala log (nunca da límites negativos).
+# - Los puntos con precisión baja (CV > 30 %) salen tenues: no hay que leerlos
+#   como un resultado firme.
+grafica_razon <- function(datos, eje_y, titulo, subtitulo) {
+  datos$LI <- datos$RAZON_MUJER_HOMBRE * exp(-1.96 * datos$CV_RAZON / 100)
+  datos$LS <- datos$RAZON_MUJER_HOMBRE * exp( 1.96 * datos$CV_RAZON / 100)
+  ggplot(datos, aes(x = RAZON_MUJER_HOMBRE, y = .data[[eje_y]],
+                    color = factor(ANIO), alpha = PRECISION_RAZON)) +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "grey40") +
+    geom_pointrange(aes(xmin = LI, xmax = LS), orientation = "y",
+                    position = position_dodge(0.6), size = 0.5, linewidth = 0.7) +
+    facet_wrap(~orden_amb(AMBITO), nrow = 1) +
+    scale_color_manual(values = col_anio) +
+    scale_alpha_manual(values = c(Alta = 1, Moderada = 0.7, Baja = 0.3),
+                       breaks = c("Alta", "Moderada", "Baja"),
+                       name = "Precisión de la estimación") +
+    scale_x_log10(labels = label_number(accuracy = 0.01, drop0trailing = TRUE)) +
+    scale_y_discrete(limits = rev, labels = label_wrap(16)) +
+    labs(x = eje_razon, y = NULL, color = "Año",
+         title = titulo, subtitle = subtitulo, caption = pie_fuente) +
+    tema_h()
+}
+
+
+# ---- F1. Ingreso medio per cápita por jefatura y año, con IC 95 % ------------
 datos_f1 <- subset(todo_precision, INDICADOR == "Ingreso medio per cápita")
-datos_f1$EE <- datos_f1$ESTIMACION * datos_f1$CV / 100 # error estándar = media x CV
+datos_f1$EE <- datos_f1$ESTIMACION * datos_f1$CV / 100
 
 f1 <- ggplot(datos_f1, aes(x = factor(ANIO), y = ESTIMACION, fill = JEFATURA)) +
   geom_col(position = position_dodge(0.8), width = 0.7) +
   geom_errorbar(aes(ymin = ESTIMACION - 1.96 * EE, ymax = ESTIMACION + 1.96 * EE),
-                position = position_dodge(0.8), width = 0.2) +
+                position = position_dodge(0.8), width = 0.18, color = "grey25") +
+  geom_text(aes(y = ESTIMACION + 1.96 * EE, label = dollar(ESTIMACION, accuracy = 1)),
+            position = position_dodge(0.8), vjust = -0.6, size = 3.2, color = "grey20") +
   facet_wrap(~orden_amb(AMBITO)) +
   scale_fill_manual(values = col_jef) +
-  labs(x = NULL, y = "Ingreso trimestral per cápita (pesos de 2024)", fill = "Jefatura",
-       title = "Ingreso medio per cápita por sexo de la jefatura", caption = pie_fuente) +
-  theme_classic()
-print(f1) # se muestra en el panel Plots
-ggsave("resultados/figuras/F1_media_por_jefatura.png", f1, width = 10, height = 5, dpi = 300)
+  scale_y_continuous(labels = label_dollar(), expand = expansion(mult = c(0, 0.15))) +
+  labs(x = NULL, y = "Pesos trimestrales por persona (a pesos de 2024)", fill = "Jefatura",
+       title = "Ingreso medio per cápita por sexo de la jefatura",
+       subtitle = "Barras de error: intervalo de confianza al 95 %",
+       caption = pie_fuente) +
+  tema_pro()
+guardar(f1, "F1_media_por_jefatura.png", 11, 5.5)
 
-# ---- F2. % de hogares con jefatura femenina por decil nacional ----
+
+# ---- F2. % de hogares con jefatura femenina por decil nacional ---------------
+# Línea punteada = % de hogares con jefa en todo el ámbito: las barras por
+# encima de la línea indican deciles donde las jefas están sobrerrepresentadas.
 datos_f2 <- data.frame(
   AMBITO = rep(todo_ubicacion$AMBITO, 2),
   ANIO   = rep(c("2022", "2024"), each = nrow(todo_ubicacion)),
   DECIL  = rep(todo_ubicacion$DECIL, 2),
-  PCT    = c(todo_ubicacion$PCT_HOGARES_JEFA_2022, todo_ubicacion$PCT_HOGARES_JEFA_2024))
+  PCT    = c(todo_ubicacion$PCT_HOGARES_JEFA_2022, todo_ubicacion$PCT_HOGARES_JEFA_2024),
+  PREC   = c(todo_ubicacion$PRECISION_2022, todo_ubicacion$PRECISION_2024))
 
-f2 <- ggplot(datos_f2, aes(x = factor(DECIL), y = PCT, fill = ANIO)) +
-  geom_col(position = "dodge") +
-  facet_wrap(~orden_amb(AMBITO), ncol = 1) +
-  scale_fill_manual(values = col_anio) +
-  labs(x = "Decil nacional de ingreso per cápita", y = "% de hogares con jefatura femenina",
-       fill = NULL, title = "Hogares con jefatura femenina en cada decil", caption = pie_fuente) +
-  theme_classic()
-print(f2) # se muestra en el panel Plots
-ggsave("resultados/figuras/F2_jefatura_femenina_por_decil.png", f2, width = 8, height = 9, dpi = 300)
+ref_f2 <- subset(todo_tamano, JEFATURA == "Mujer")
+ref_f2$ANIO <- as.character(ref_f2$ANIO)
 
-# ---- F3. Curvas de Lorenz por jefatura, año y ámbito ----
-f3 <- ggplot(todo_lorenz, aes(x = POBLACION_ACUMULADA, y = INGRESO_ACUMULADO, color = JEFATURA)) +
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey50") +
-  geom_line() +
-  geom_point(size = 1) +
+f2 <- ggplot(datos_f2, aes(x = factor(DECIL), y = PCT, alpha = PREC)) +
+  geom_col(fill = col_jef[["Mujer"]], width = 0.75) +
+  geom_text(aes(label = round(PCT, 0)), alpha = 1, vjust = -0.5, size = 2.8, color = "grey25") +
+  geom_hline(data = ref_f2, aes(yintercept = PCT_HOGARES), inherit.aes = FALSE,
+             linetype = "dashed", color = "grey25") +
   facet_grid(orden_amb(AMBITO) ~ ANIO) +
-  scale_color_manual(values = col_jef) +
-  labs(x = "Participación acumulada de los hogares",
-       y = "Participación acumulada del ingreso", color = "Jefatura",
-       title = "Curvas de Lorenz del ingreso per cápita por sexo de la jefatura",
+  scale_alpha_manual(values = c(Alta = 1, Moderada = 0.7, Baja = 0.35),
+                     breaks = c("Alta", "Moderada", "Baja"),
+                     name = "Precisión de la estimación") +
+  scale_y_continuous(labels = label_number(suffix = " %"),
+                     expand = expansion(mult = c(0, 0.12))) +
+  labs(x = "Decil nacional de ingreso per cápita (1 = el más pobre, 10 = el más rico)",
+       y = "% de hogares con jefatura femenina",
+       title = "¿En qué parte de la distribución están los hogares con jefa?",
+       subtitle = "Línea punteada = % de hogares con jefa en todo el ámbito. Barras tenues: estimación poco precisa",
        caption = pie_fuente) +
-  theme_classic()
-print(f3) # se muestra en el panel Plots
-ggsave("resultados/figuras/F3_lorenz.png", f3, width = 8, height = 10, dpi = 300)
+  tema_pro()
+guardar(f2, "F2_jefatura_femenina_por_decil.png", 10, 10)
 
-# ---- F4. La brecha: razón Mujer/Hombre del ingreso per cápita, con IC 95 % ----
-f4 <- ggplot(todo_brecha, aes(x = factor(ANIO), y = RAZON_MUJER_HOMBRE, fill = factor(ANIO))) +
-  geom_col(width = 0.6) +
+
+# ---- F3. Curvas de Lorenz, con el Gini de cada grupo anotado -----------------
+# Si las curvas casi se empalman, el Gini anotado en cada panel permite ver
+# la diferencia que el ojo no distingue.
+gini_lab <- todo_desigualdad %>%
+  filter(GRUPO != "Total") %>%
+  mutate(ANIO = as.character(ANIO)) %>%
+  group_by(AMBITO, ANIO) %>%
+  summarise(ETIQ = paste0("Gini hombres: ", sprintf("%.3f", GINI[GRUPO == "Hombre"]),
+                          "\nGini mujeres: ", sprintf("%.3f", GINI[GRUPO == "Mujer"])),
+            .groups = "drop")
+
+f3 <- ggplot(todo_lorenz, aes(x = POBLACION_ACUMULADA, y = INGRESO_ACUMULADO, color = JEFATURA)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "grey60") +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.4) +
+  geom_text(data = gini_lab, aes(x = 0.03, y = 0.97, label = ETIQ), inherit.aes = FALSE,
+            hjust = 0, vjust = 1, size = 3, color = "grey25", lineheight = 1.1) +
+  facet_grid(orden_amb(AMBITO) ~ ANIO) +
+  coord_equal() +
+  scale_color_manual(values = col_jef) +
+  scale_x_continuous(labels = label_percent(accuracy = 1), breaks = seq(0, 1, 0.25)) +
+  scale_y_continuous(labels = label_percent(accuracy = 1), breaks = seq(0, 1, 0.25)) +
+  labs(x = "% acumulado de los hogares (de menor a mayor ingreso)",
+       y = "% acumulado del ingreso", color = "Jefatura",
+       title = "Curvas de Lorenz del ingreso per cápita",
+       subtitle = "Entre más lejos de la diagonal (igualdad perfecta), mayor desigualdad",
+       caption = pie_fuente) +
+  tema_pro() +
+  theme(panel.grid.major.x = element_line(color = "grey90", linewidth = 0.4))
+guardar(f3, "F3_lorenz.png", 8.5, 11)
+
+
+# ---- F4. La brecha: razón Mujer/Hombre, con la prueba del cambio 2022-2024 ----
+# El título de cada panel dice si el cambio entre años es estadísticamente
+# significativo (viene del paso 6).
+cambio_razon <- subset(todo_cambios, INDICADOR == "Brecha: razón Mujer/Hombre de medias")
+cambio_razon$ETIQ <- paste0(cambio_razon$AMBITO, "\nCambio 2022-2024: ",
+                            sprintf("%+.3f", cambio_razon$CAMBIO),
+                            ifelse(cambio_razon$CAMBIO_SIGNIFICATIVO,
+                                   " (significativo)", " (no significativo)"))
+cambio_razon$ETIQ <- factor(cambio_razon$ETIQ,
+                            levels = cambio_razon$ETIQ[match(ambitos, cambio_razon$AMBITO)])
+datos_f4 <- merge(todo_brecha, cambio_razon[, c("AMBITO", "ETIQ")], by = "AMBITO")
+
+f4 <- ggplot(datos_f4, aes(x = factor(ANIO), y = RAZON_MUJER_HOMBRE, color = factor(ANIO))) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey40") +
   geom_errorbar(aes(ymin = RAZON_MUJER_HOMBRE - 1.96 * ERROR_ESTANDAR_RAZON,
                     ymax = RAZON_MUJER_HOMBRE + 1.96 * ERROR_ESTANDAR_RAZON),
-                width = 0.15) +
-  geom_hline(yintercept = 1, linetype = "dashed") +   # 1 = sin brecha
-  geom_text(aes(label = round(RAZON_MUJER_HOMBRE, 3)), vjust = -2.5, size = 3.5) + # valor arriba de la barra
-  facet_wrap(~orden_amb(AMBITO)) +
-  scale_fill_manual(values = col_anio, guide = "none") +
+                width = 0.12, linewidth = 0.8) +
+  geom_point(size = 4) +
+  geom_text(aes(y = RAZON_MUJER_HOMBRE + 1.96 * ERROR_ESTANDAR_RAZON,
+                label = number(RAZON_MUJER_HOMBRE, accuracy = 0.001)),
+            vjust = -1, size = 3.6, fontface = "bold", show.legend = FALSE) +
+  facet_wrap(~ETIQ) +
+  scale_color_manual(values = col_anio, guide = "none") +
+  scale_y_continuous(labels = label_number(accuracy = 0.01),
+                     expand = expansion(mult = c(0.1, 0.15))) +
+  expand_limits(y = 1) +
   labs(x = NULL, y = "Razón Mujer/Hombre del ingreso per cápita",
        title = "Brecha de ingreso per cápita entre hogares con jefa y con jefe",
-       subtitle = "1 = sin brecha; mayor que 1: más ingreso por persona en hogares con jefa",
+       subtitle = "Línea punteada = sin brecha (1). Menos de 1: los hogares con jefa tienen menos ingreso por persona. Barras: IC 95 %",
        caption = pie_fuente) +
-  coord_cartesian(ylim = c(0, 1.25)) +
-  theme_classic()
-print(f4) # se muestra en el panel Plots
-ggsave("resultados/figuras/F4_razon_mujer_hombre.png", f4, width = 10, height = 5, dpi = 300)
+  tema_pro()
+guardar(f4, "F4_razon_mujer_hombre.png", 11, 6)
 
-# ---- F5. Número promedio de integrantes por hogar, con IC 95 % ----
+
+# ---- F5. Número promedio de integrantes por hogar, con IC 95 % ----------------
 f5 <- ggplot(todo_tamano, aes(x = factor(ANIO), y = INTEGRANTES_PROMEDIO, fill = JEFATURA)) +
   geom_col(position = position_dodge(0.8), width = 0.7) +
   geom_errorbar(aes(ymin = INTEGRANTES_PROMEDIO - 1.96 * ERROR_ESTANDAR_INTEGRANTES,
                     ymax = INTEGRANTES_PROMEDIO + 1.96 * ERROR_ESTANDAR_INTEGRANTES),
-                position = position_dodge(0.8), width = 0.2) +
-  geom_text(aes(label = round(INTEGRANTES_PROMEDIO, 2)),
-            position = position_dodge(0.8), vjust = -1.2, size = 3.2) +
+                position = position_dodge(0.8), width = 0.18, color = "grey25") +
+  geom_text(aes(y = INTEGRANTES_PROMEDIO + 1.96 * ERROR_ESTANDAR_INTEGRANTES,
+                label = number(INTEGRANTES_PROMEDIO, accuracy = 0.01)),
+            position = position_dodge(0.8), vjust = -0.6, size = 3.2) +
   facet_wrap(~orden_amb(AMBITO)) +
   scale_fill_manual(values = col_jef) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
   labs(x = NULL, y = "Integrantes por hogar (promedio)", fill = "Jefatura",
        title = "Número promedio de integrantes por hogar según la jefatura",
+       subtitle = "Con el mismo ingreso, un hogar más pequeño tiene más ingreso por persona",
        caption = pie_fuente) +
-  coord_cartesian(ylim = c(0, 4.5)) +
-  theme_classic()
-print(f5) # se muestra en el panel Plots
-ggsave("resultados/figuras/F5_integrantes_por_hogar.png", f5, width = 10, height = 5, dpi = 300)
+  tema_pro()
+guardar(f5, "F5_integrantes_por_hogar.png", 11, 5.5)
 
-# ---- F6. Composición del ingreso por fuente, jefatura, año y ámbito ----
+
+# ---- F6. Composición del ingreso por fuente, jefatura, año y ámbito -----------
 datos_f6 <- subset(todo_composicion, JEFATURA != "Total")
 
 f6 <- ggplot(datos_f6, aes(x = JEFATURA, y = PCT_DEL_INGRESO, fill = FUENTE)) +
-  geom_col(width = 0.7) +
-  geom_text(aes(label = ifelse(PCT_DEL_INGRESO >= 4, round(PCT_DEL_INGRESO, 0), "")),
-            position = position_stack(vjust = 0.5), size = 3, color = "white") +
+  geom_col(width = 0.7, color = "white", linewidth = 0.4) +
+  geom_text(aes(label = ifelse(PCT_DEL_INGRESO >= 4, paste0(round(PCT_DEL_INGRESO, 0), " %"), "")),
+            position = position_stack(vjust = 0.5), size = 3, color = "white", fontface = "bold") +
   facet_grid(orden_amb(AMBITO) ~ ANIO) +
   scale_fill_manual(values = col_fuente) +
-  labs(x = NULL, y = "% del ingreso corriente total", fill = "Fuente del ingreso",
-       title = "Composición del ingreso corriente por fuente y sexo de la jefatura",
+  scale_y_continuous(labels = label_number(suffix = " %"), expand = c(0, 0)) +
+  labs(x = NULL, y = "% del ingreso corriente total", fill = NULL,
+       title = "¿De dónde viene el ingreso de los hogares?",
+       subtitle = "Composición del ingreso corriente por fuente y sexo de la jefatura (cada barra suma 100 %)",
        caption = pie_fuente) +
-  theme_classic()
-print(f6) # se muestra en el panel Plots
-ggsave("resultados/figuras/F6_composicion_por_fuente.png", f6, width = 9, height = 10, dpi = 300)
+  tema_pro() +
+  theme(legend.position = "bottom")
+guardar(f6, "F6_composicion_por_fuente.png", 9, 10.5)
 
-# ---- F7. Composición del ingreso por fuente en cada decil nacional ----
-# (pasar el Cuadro 12 de columnas a filas: una fila por decil, jefatura y fuente)
+
+# ---- F7. Composición del ingreso por fuente en cada decil (una figura por año) -
+# Se separa por año para que cada figura tenga solo 6 paneles. Las celdas con
+# pocos hogares en la muestra salen tenues (estimación poco confiable).
 datos_f7 <- NULL
 for (k in 1:5) {
   datos_f7 <- rbind(datos_f7, data.frame(
-    todo_comp_decil[, c("AMBITO", "ANIO", "DECIL", "JEFATURA")],
+    todo_comp_decil[, c("AMBITO", "ANIO", "DECIL", "JEFATURA", "HOGARES_EN_MUESTRA")],
     FUENTE = nombres_fuente[k],
     PCT    = todo_comp_decil[[paste0("PCT_", fuentes_ingreso[k])]]))
 }
 datos_f7$FUENTE <- factor(datos_f7$FUENTE, levels = nombres_fuente)
+datos_f7$MUESTRA <- ifelse(datos_f7$HOGARES_EN_MUESTRA < 30,
+                           "Menos de 30 hogares en la muestra", "30 o más hogares")
 
-f7 <- ggplot(datos_f7, aes(x = factor(DECIL), y = PCT, fill = FUENTE)) +
-  geom_col(width = 0.85) +
-  facet_grid(orden_amb(AMBITO) ~ ANIO + JEFATURA) +
-  scale_fill_manual(values = col_fuente) +
-  labs(x = "Decil nacional de ingreso per cápita", y = "% del ingreso corriente del decil",
-       fill = "Fuente del ingreso",
-       title = "Composición del ingreso por fuente en cada decil, según la jefatura",
-       caption = pie_fuente) +
-  theme_classic() +
-  theme(legend.position = "bottom")
-print(f7) # se muestra en el panel Plots
-ggsave("resultados/figuras/F7_composicion_por_decil.png", f7, width = 16, height = 9, dpi = 300)
+for (a in c(2022, 2024)) {
+  f7 <- ggplot(subset(datos_f7, ANIO == a),
+               aes(x = factor(DECIL), y = PCT, fill = FUENTE, alpha = MUESTRA)) +
+    geom_col(width = 0.88, color = "white", linewidth = 0.2) +
+    facet_grid(orden_amb(AMBITO) ~ JEFATURA) +
+    scale_fill_manual(values = col_fuente) +
+    scale_alpha_manual(values = c("30 o más hogares" = 1,
+                                  "Menos de 30 hogares en la muestra" = 0.4), name = NULL) +
+    scale_y_continuous(labels = label_number(suffix = " %"), expand = c(0, 0)) +
+    labs(x = "Decil nacional de ingreso per cápita (1 = el más pobre, 10 = el más rico)",
+         y = "% del ingreso corriente del decil", fill = NULL,
+         title = paste("Composición del ingreso por fuente en cada decil,", a),
+         subtitle = "Barras tenues: menos de 30 hogares en la muestra, interpretar con cautela",
+         caption = pie_fuente) +
+    tema_pro(base_size = 11) +
+    theme(legend.position = "bottom")
+  guardar(f7, paste0("F7_composicion_por_decil_", a, ".png"), 12, 9)
+}
 
-# ---- F8. Brecha Mujer/Hombre en el ingreso de cada fuente, con IC 95 % ----
-datos_f8 <- todo_brecha_fuente
-datos_f8$EE <- datos_f8$RAZON_MUJER_HOMBRE * datos_f8$CV_RAZON / 100 # error estándar = razón x CV
 
-f8 <- ggplot(datos_f8, aes(x = FUENTE, y = RAZON_MUJER_HOMBRE, fill = factor(ANIO))) +
-  geom_col(position = position_dodge(0.8), width = 0.7) +
-  geom_errorbar(aes(ymin = RAZON_MUJER_HOMBRE - 1.96 * EE, ymax = RAZON_MUJER_HOMBRE + 1.96 * EE),
-                position = position_dodge(0.8), width = 0.2) +
-  geom_hline(yintercept = 1, linetype = "dashed") +   # 1 = sin brecha
-  facet_wrap(~orden_amb(AMBITO), ncol = 1, scales = "free_y") +
-  scale_fill_manual(values = col_anio) +
-  scale_x_discrete(labels = c("Trabajo", "Rentas", "Transferencias",
-                              "Estimación\ndel alquiler", "Otros\ningresos")) +
-  labs(x = NULL, y = "Razón Mujer/Hombre del ingreso per cápita de la fuente", fill = NULL,
-       title = "Brecha Mujer/Hombre por fuente de ingreso",
-       subtitle = "1 = sin brecha", caption = pie_fuente) +
-  theme_classic()
-print(f8) # se muestra en el panel Plots
-ggsave("resultados/figuras/F8_brecha_por_fuente.png", f8, width = 9, height = 10, dpi = 300)
+# ---- F8. Brecha Mujer/Hombre por fuente de ingreso ----------------------------
+f8 <- grafica_razon(todo_brecha_fuente, "FUENTE",
+                    "Brecha Mujer/Hombre por fuente de ingreso",
+                    "Puntos con IC 95 %. Los puntos tenues son estimaciones poco precisas")
+guardar(f8, "F8_brecha_por_fuente.png", 14, 5.5)
 
-# ---- F9. Razón Mujer/Hombre con el ingreso completo y sin cada fuente ----
-datos_f9 <- todo_con_sin
-datos_f9$EE <- datos_f9$RAZON_MUJER_HOMBRE * datos_f9$CV_RAZON / 100
 
-f9 <- ggplot(datos_f9, aes(x = ESCENARIO, y = RAZON_MUJER_HOMBRE, fill = factor(ANIO))) +
-  geom_col(position = position_dodge(0.8), width = 0.7) +
-  geom_errorbar(aes(ymin = RAZON_MUJER_HOMBRE - 1.96 * EE, ymax = RAZON_MUJER_HOMBRE + 1.96 * EE),
-                position = position_dodge(0.8), width = 0.2) +
-  geom_hline(yintercept = 1, linetype = "dashed") +   # 1 = sin brecha
-  facet_wrap(~orden_amb(AMBITO), ncol = 1) +
-  scale_fill_manual(values = col_anio) +
-  scale_x_discrete(labels = function(x) gsub(" ", "\n", x, fixed = TRUE)) +
-  labs(x = NULL, y = "Razón Mujer/Hombre del ingreso per cápita", fill = NULL,
-       title = "Brecha Mujer/Hombre con el ingreso completo y sin cada fuente",
-       subtitle = "1 = sin brecha", caption = pie_fuente) +
-  theme_classic()
-print(f9) # se muestra en el panel Plots
-ggsave("resultados/figuras/F9_razon_con_sin_fuente.png", f9, width = 10, height = 10, dpi = 300)
+# ---- F9. Razón Mujer/Hombre con el ingreso completo y sin cada fuente ---------
+f9 <- grafica_razon(todo_con_sin, "ESCENARIO",
+                    "Brecha Mujer/Hombre con el ingreso completo y sin cada fuente",
+                    "Si al quitar una fuente el punto se acerca a 1, esa fuente ampliaba la brecha")
+guardar(f9, "F9_razon_con_sin_fuente.png", 14, 5.5)
 
-# ---- F10. Gini por jefatura con el ingreso completo y sin cada fuente ----
+
+# ---- F10. Gini por jefatura, con el ingreso completo y sin cada fuente --------
+# Una línea une el Gini de hombres y mujeres: su largo es la diferencia entre grupos.
 datos_f10 <- rbind(
   data.frame(todo_con_sin[, c("AMBITO", "ANIO", "ESCENARIO")], JEFATURA = "Hombre",
              GINI = todo_con_sin$GINI_HOMBRE),
   data.frame(todo_con_sin[, c("AMBITO", "ANIO", "ESCENARIO")], JEFATURA = "Mujer",
              GINI = todo_con_sin$GINI_MUJER))
 
-f10 <- ggplot(datos_f10, aes(x = ESCENARIO, y = GINI, fill = JEFATURA)) +
-  geom_col(position = position_dodge(0.8), width = 0.7) +
-  facet_grid(orden_amb(AMBITO) ~ ANIO) +
-  scale_fill_manual(values = col_jef) +
-  scale_x_discrete(labels = function(x) gsub(" ", "\n", x, fixed = TRUE)) +
-  labs(x = NULL, y = "Gini del ingreso per cápita", fill = "Jefatura",
+f10 <- ggplot(datos_f10, aes(x = GINI, y = ESCENARIO)) +
+  geom_line(aes(group = ESCENARIO), color = "grey75", linewidth = 1.3) +
+  geom_point(aes(color = JEFATURA), size = 3.2) +
+  facet_grid(ANIO ~ orden_amb(AMBITO)) +
+  scale_color_manual(values = col_jef) +
+  scale_x_continuous(labels = label_number(accuracy = 0.01)) +
+  scale_y_discrete(limits = rev, labels = label_wrap(16)) +
+  labs(x = "Gini del ingreso per cápita (0 = igualdad total, 1 = desigualdad total)",
+       y = NULL, color = "Jefatura",
        title = "Gini con el ingreso completo y sin cada fuente, por sexo de la jefatura",
+       subtitle = "La línea gris une el Gini de hombres y mujeres: entre más larga, más distintos son los grupos",
        caption = pie_fuente) +
-  theme_classic() +
-  theme(axis.text.x = element_text(size = 7))
-print(f10) # se muestra en el panel Plots
-ggsave("resultados/figuras/F10_gini_con_sin_fuente.png", f10, width = 12, height = 9, dpi = 300)
+  tema_h(base_size = 11)
+guardar(f10, "F10_gini_con_sin_fuente.png", 14, 7.5)
 
-# ---- F11. Theil: % de la desigualdad que está ENTRE jefas y jefes ----
+
+# ---- F11. Theil: % de la desigualdad que está ENTRE jefas y jefes -------------
 datos_f11 <- subset(todo_theil_con_sin, INDICE == "Theil GE(1)")
 
-f11 <- ggplot(datos_f11, aes(x = ESCENARIO, y = PCT_ENTRE, fill = factor(ANIO))) +
+f11 <- ggplot(datos_f11, aes(x = PCT_ENTRE, y = ESCENARIO, fill = factor(ANIO))) +
   geom_col(position = position_dodge(0.8), width = 0.7) +
-  facet_wrap(~orden_amb(AMBITO), ncol = 1) +
+  geom_text(aes(label = paste0(number(PCT_ENTRE, accuracy = 0.1), " %")),
+            position = position_dodge(0.8), hjust = -0.15, size = 3) +
+  facet_wrap(~orden_amb(AMBITO), nrow = 1) +
   scale_fill_manual(values = col_anio) +
-  scale_x_discrete(labels = function(x) gsub(" ", "\n", x, fixed = TRUE)) +
-  labs(x = NULL, y = "% del Theil que está entre jefas y jefes", fill = NULL,
-       title = "Desigualdad (Theil) entre grupos con el ingreso completo y sin cada fuente",
+  scale_x_continuous(labels = label_number(suffix = " %"),
+                     expand = expansion(mult = c(0, 0.22))) +
+  scale_y_discrete(limits = rev, labels = label_wrap(16)) +
+  labs(x = "% del Theil que está entre hogares con jefa y con jefe", y = NULL, fill = "Año",
+       title = "¿Cuánta desigualdad se explica por el sexo de la jefatura?",
+       subtitle = "El resto de la desigualdad ocurre dentro de cada grupo",
        caption = pie_fuente) +
-  theme_classic()
-print(f11) # se muestra en el panel Plots
-ggsave("resultados/figuras/F11_theil_entre_con_sin_fuente.png", f11, width = 10, height = 10, dpi = 300)
-
+  tema_h()
+guardar(f11, "F11_theil_entre_con_sin_fuente.png", 14, 5.5)
